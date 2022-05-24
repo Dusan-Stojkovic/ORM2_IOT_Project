@@ -11,14 +11,17 @@ class Client():
     def __init__(self):
         self.server_alive = False
         self.connection = None
+        self.connected = False
+        self.ip = self.get_ip()
+        self.alive = {'alive': True, 'ip': self.ip}
 
     def run(self):
         self.init_socket()
-        t = Thread(target=self._listen_for_srv, args=(), daemon=True)
+        t = Thread(target=self._connect_to_srv, args=(), daemon=True)
         t.start()
         self._streams()
 
-    def _listen_for_srv(self):
+    def _connect_to_srv(self):
         while not self.server_alive:
             print("SERVER NOT ALIVE")
 
@@ -36,7 +39,17 @@ class Client():
                 self.serverIp,
                 self.port))
 
-    def get_ip():
+        # Keep alive time
+        while True:
+            bts, addr = self.client_socket.recvfrom(1024)
+            if bts.decode() == "":
+                print("server lost")
+
+            data = json.dumps(self.alive).encode()
+            self.client_socket.sendto(data, (self.serverIp, self.port))
+            time.sleep(0.1)
+
+    def get_ip(self):
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
             # doesn't even have to be reachable
@@ -49,11 +62,10 @@ class Client():
             s.close()
         return IP
 
-    def init_socket(self, addr):
+    def init_socket(self):
         """Initialize the socket client.
         """
 
-        self.serverIp = addr
         self.port = 45000            # com port
 
         self.clientIp_ack = '0.0.0.0'
@@ -75,8 +87,13 @@ class Client():
     def _streams(self):
         while True:
             try:
-                if self.server_alive:
-                    discovery_message = DiscoveryMessage().toJSON()
+                if self.server_alive and not self.connected:
+                    self.connected = True
+                    discovery_message = DiscoveryMessage(
+                        {'id': 120, 'ip': self.ip,
+                            'manual': True, 'actuators': [
+                                "accel", "steer"], 'sensors': ["camera"]}
+                    ).toJSON()
                     # print(discovery_message)
                     data = discovery_message.encode()
                     self.client_socket.sendto(data, (self.serverIp, self.port))

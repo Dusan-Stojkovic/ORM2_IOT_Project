@@ -14,6 +14,7 @@ class Server():
         self.ip = self.get_ip()
         self.alive = {'alive': True, 'ip': self.ip}
         self.threads = []
+        self.connected_clients = []
         self.threads.append(Thread(
             target=self._broadcast_alive, args=(), daemon=True))
         self.repeat = Event()
@@ -30,19 +31,19 @@ class Server():
         while not self.repeat.wait(1):
             i = 0
             remove = False
-            for harvester in self.harvesters:
-                if not harvester.keep_alive:
-                    print("client {0} has dropped his connection.".format(harvester.ip))
+            for ip, conn in self.connected_clients:
+                if not conn:
+                    print("client {0} has dropped his connection.".format(ip))
                     remove = True
                     break
                 i += 1
 
             if remove:
-                self.harvesters.pop(i)
+                self.connected_clients.pop(i)
 
             i = 0
-            for i in range(len(self.harvesters)):
-                self.harvesters[i].keep_alive = False 
+            for i in range(len(self.connected_clients)):
+                self.connected_clients[i] = (self.connected_clients[i][0], False) 
 
     def _init_socket(self):
         """Initialize the communication socket server.
@@ -95,31 +96,34 @@ class Server():
     def _read_stream(self):
         self.server_socket.setblocking(False)
         while True:
-            #try:
-            ready = select.select([self.server_socket], [], [], 0.5)
-            if ready[0]:
-                bts, addr = self.server_socket.recvfrom(1024)
-                msg = bts.decode()
-                msg = json.loads(msg)
-                if 'alive' in msg:
-                    if msg['alive']:
-                        i = 0
-                        for harvester in self.harvesters:
-                            if harvester.ip == msg['ip']:
-                                self.harvesters[i].keep_alive = True
-                                break
-                            i += 1
+            try:
+                ready = select.select([self.server_socket], [], [], 0.5)
+                if ready[0]:
+                    bts, addr = self.server_socket.recvfrom(1024)
+                    msg = bts.decode()
+                    msg = json.loads(msg)
+                    if 'alive' in msg:
+                        if msg['alive']:
+                            i = 0
+                            for ip, conn in self.connected_clients:
+                                if ip == msg['ip']:
+                                    break
+                                i += 1
 
-                        # print("client on ip: {0} is alive".format(msg['ip']))
-                else:
-                    discovery_message = DiscoveryMessage(msg, False)
-                    print(discovery_message)
-                    # detach thread to work with the new harvesters
-                    self.harvesters.append(discovery_message)
+                            self.connected_clients[i] = (msg['ip'], True)
+                            #print("client on ip: {0} is alive".format(
+                            #     msg['ip']))
+                    else:
+                        discovery_message = DiscoveryMessage(msg)
+                        print(discovery_message)
+                        self.connected_clients.append(
+                                (discovery_message.ip, True))
+                        # detach thread to work with the new harvesters
+                        self.harvesters.append(discovery_message)
 
-            #except BaseException:
-            #    self.server_socket.close()
-            #    pass
+            except BaseException:
+                self.server_socket.close()
+                pass
 
 
 if __name__ == "__main__":
