@@ -42,7 +42,7 @@ class Server():
 
             i = 0
             for i in range(len(self.harvesters)):
-                self.harvesters[i].keep_alive = False 
+                self.harvesters[i].keep_alive = False
 
     def _init_socket(self):
         """Initialize the communication socket server.
@@ -77,7 +77,8 @@ class Server():
     def _broadcast_alive(self):
         bits = self.ip.split('.')
         addr_bit = bits[0] + '.' + bits[1] + '.' + bits[2] + '.'
-        allips = [addr_bit + str(i) for i in range(0, 255)]
+        # allips = [addr_bit + str(i) for i in range(0, 255)]
+        allips = [addr_bit + str(255)]
         while True:
             for ip in allips:
                 try:
@@ -95,7 +96,7 @@ class Server():
     def _read_stream(self):
         self.server_socket.setblocking(False)
         while True:
-            #try:
+            # try:
             ready = select.select([self.server_socket], [], [], 0.5)
             if ready[0]:
                 bts, addr = self.server_socket.recvfrom(1024)
@@ -117,9 +118,9 @@ class Server():
                     # detach thread to work with the new harvesters
                     self.harvesters.append(discovery_message)
 
-            #except BaseException:
-            #    self.server_socket.close()
-            #    pass
+            # except BaseException:
+            #     self.server_socket.close()
+            #     pass
 
 
 if __name__ == "__main__":

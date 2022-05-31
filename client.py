@@ -19,11 +19,14 @@ class Client():
         self.init_socket()
         t = Thread(target=self._connect_to_srv, args=(), daemon=True)
         t.start()
+        t2 = Thread(target=self.callback, args=(), daemon=True))
+        t2.start()
         self._streams()
 
-    def _connect_to_srv(self):
-        while not self.server_alive:
-            print("SERVER NOT ALIVE")
+    def callback(self):
+        while not self.repeat.wait(3):
+            if not self.server_alive:
+                print("SERVER NOT ALIVE")
 
             ready = select.select([self.client_socket], [], [], 0.1)
             if ready[0]:
@@ -32,15 +35,15 @@ class Client():
                 msg = json.loads(msg)
                 self.server_alive = msg['alive']
                 self.serverIp = msg['ip']
-            time.sleep(1)
+            print(
+                "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
+                    self.serverIp,
+                    self.port))
 
-        print(
-            "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
-                self.serverIp,
-                self.port))
+    def _connect_to_srv(self):
 
         # Keep alive time
-        while True:
+        while self.server_alive:
             bts, addr = self.client_socket.recvfrom(1024)
             if bts.decode() == "":
                 print("server lost")
