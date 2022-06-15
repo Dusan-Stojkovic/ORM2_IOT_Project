@@ -2,6 +2,7 @@ from threading import Thread, Event
 import socket
 import json
 from discovery_message import DiscoveryMessage
+from sys import getsizeof
 import time
 import select
 
@@ -13,6 +14,7 @@ class Server():
         self.threads = []
         self.ip = self.get_ip()
         self.alive = {'alive': True, 'ip': self.ip}
+        self.alive_size = getsizeof(self.alive)
         self.threads = []
         self.threads.append(Thread(
             target=self._broadcast_alive, args=(), daemon=True))
@@ -20,11 +22,11 @@ class Server():
 
     def run(self):
         self._init_socket()
-        self.threads[0].start()
+        self.threads[0].start()                                 # start broadcast_alive
         self.threads.append(Thread(
-            target=self.callback, args=(), daemon=True))
+            target=self.callback, args=(), daemon=True))        # start keep_alive listener
         self.threads[-1].start()
-        self._read_stream()
+        self._read_stream()                                     # main loop reads stream
 
     def callback(self):
         while not self.repeat.wait(1):
@@ -40,8 +42,10 @@ class Server():
             if remove:
                 self.harvesters.pop(i)
 
+            # TODO send alive message back here.
             i = 0
             for i in range(len(self.harvesters)):
+                print("{0} is alive".format(self.harvesters[i].ip))
                 self.harvesters[i].keep_alive = False
 
     def _init_socket(self):
@@ -77,8 +81,8 @@ class Server():
     def _broadcast_alive(self):
         bits = self.ip.split('.')
         addr_bit = bits[0] + '.' + bits[1] + '.' + bits[2] + '.'
-        # allips = [addr_bit + str(i) for i in range(0, 255)]
-        allips = [addr_bit + str(255)]
+        allips = [addr_bit + str(i) for i in range(0, 255)]
+        # allips = [addr_bit + str(255)] real broadcast
         while True:
             for ip in allips:
                 try:
@@ -91,33 +95,39 @@ class Server():
                 except BaseException:
                     time.sleep(0.1)
                     pass
-                # print(self.alive)
 
     def _read_stream(self):
         self.server_socket.setblocking(False)
         while True:
-            # try:
-            ready = select.select([self.server_socket], [], [], 0.5)
-            if ready[0]:
-                bts, addr = self.server_socket.recvfrom(1024)
-                msg = bts.decode()
-                msg = json.loads(msg)
-                if 'alive' in msg:
-                    if msg['alive']:
-                        i = 0
-                        for harvester in self.harvesters:
-                            if harvester.ip == msg['ip']:
-                                self.harvesters[i].keep_alive = True
-                                break
-                            i += 1
+            try:
+                ready = select.select([self.server_socket], [], [], 0.5)
+                if ready[0]:
+                    bts, addr = self.server_socket.recvfrom(self.alive_size)
+                    msg = bts.decode()
+                    msg = json.loads(msg)
+                    if 'alive' in msg:
+                        if msg['alive']:
+                            i = 0
+                            for harvester in self.harvesters:
+                                if harvester.ip == msg['ip']:
+                                    self.harvesters[i].keep_alive = True
+                                    break
+                                i += 1
 
-                        # print("client on ip: {0} is alive".format(msg['ip']))
-                else:
-                    discovery_message = DiscoveryMessage(msg, False)
-                    print(discovery_message)
-                    # detach thread to work with the new harvesters
-                    self.harvesters.append(discovery_message)
+                            # print("client on ip: {0} is alive".format(msg['ip']))
+                    else:
+                        discovery_message = DiscoveryMessage(msg, False)
+                        print(discovery_message)
 
+                        # detach thread to work with the new harvesters
+                        self.harvesters.append(discovery_message)
+
+            except Exception as e:
+                # Reinitialize the socket for reconnecting to client.
+                print(e)
+                self.connection = None
+                self.init_socket()
+                pass
             # except BaseException:
             #     self.server_socket.close()
             #     pass

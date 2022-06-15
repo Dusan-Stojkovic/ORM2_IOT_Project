@@ -24,3 +24,12 @@ clienti KOMBAJN
 			}
 		}
 
+
+Refaktorisanje Discovery Protokola: 
+	1. Ovde cu kratko opisati kako je zamisljeno povezivanje klijenta i servera:
+		a. Server obavestava o svom postojanju klijente;
+		b. Klijent kada ovo sazna posalje poruku za uspostavljanje veze, preko novog (tcp/udp) socketa. Bitno pitanje je
+		novi port ili ne.
+		c. Odrzavanje veze se zasniva na specijalnom portu na kome ce se klijent izjasnjavati. O ovom portu se moraju
+		dogovoriti unapred u im alive poruci ili da ovaj portu bude deljeni podatak izmedju servera i clienta
+		d. Publish subscribe metodologija na zasebnom threadu se zapocinje nakon discovery protocola
