@@ -1,13 +1,13 @@
 from threading import Thread, Event
 import socket
 import json
-from discovery_message import DiscoveryMessage
+from topic_message import TopicMessage
 from sys import getsizeof
 import time
 import select
 
 
-class Server():
+class Controler():
     def __init__(self):
         self.connection = None
         self.harvesters = []
@@ -42,7 +42,6 @@ class Server():
             if remove:
                 self.harvesters.pop(i)
 
-            # TODO send alive message back here.
             i = 0
             for i in range(len(self.harvesters)):
                 print("{0} is alive".format(self.harvesters[i].ip))
@@ -116,11 +115,15 @@ class Server():
 
                             # print("client on ip: {0} is alive".format(msg['ip']))
                     else:
-                        discovery_message = DiscoveryMessage(msg, False)
-                        print(discovery_message)
+                        # TODO main sub loop and setup for communication
+                        # must start here, new thread for each device in network
+                        topic_message = TopicMessage(msg, False)
+                        print(topic_message)
 
-                        # detach thread to work with the new harvesters
-                        self.harvesters.append(discovery_message)
+                        # TODO detach thread to work with the new harvesters
+                        # TODO rename harvester to devices or something
+                        # TODO move logic to our broker
+                        self.harvesters.append(topic_message)
 
             except Exception as e:
                 # Reinitialize the socket for reconnecting to client.
@@ -134,5 +137,5 @@ class Server():
 
 
 if __name__ == "__main__":
-    s = Server()
+    s = Controler()
     s.run()

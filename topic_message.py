@@ -1,7 +1,7 @@
 import json
 
 
-class DiscoveryMessage:
+class TopicMessage:
     def __init__(self, j={}, alive=True):
         if j == {}:
             self.id = 0
