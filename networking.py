@@ -19,8 +19,6 @@ def init_socket_UDP(ip, port, server):
 
 # We ask our system do try and connect like this and it will give us it's
 # default ip
-
-
 def get_ip():
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     try:

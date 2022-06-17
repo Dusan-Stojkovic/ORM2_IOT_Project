@@ -14,14 +14,16 @@ class Controler():
         self.harvesters = []
         self.threads = []
         self.ip = get_ip()
-        self.port_alive = 45000
+        self.port_recieve = 45000
+        self.port_broadcast = 45001
         self.alive = {'alive': True, 'ip': self.ip}
         self.alive_size = getsizeof(self.alive)
         self.threads = []
         self.repeat = Event()
 
     def run(self):
-        self.sock = init_socket_UDP('0.0.0.0', self.port_alive, True)
+        self.sock_recieve = init_socket_UDP('0.0.0.0', self.port_recieve, True)
+        self.sock_broadcast = init_socket_UDP('0.0.0.0', self.port_broadcast, True)
         self.threads.append(Thread(
             target=self._broadcast_alive, args=(), daemon=True))
         self.threads[0].start()                     # start broadcast_alive
@@ -54,15 +56,15 @@ class Controler():
     def _broadcast_alive(self):
         bits = self.ip.split('.')
         addr_bit = bits[0] + '.' + bits[1] + '.' + bits[2] + '.'
-        allips = [addr_bit + str(i) for i in range(2, 255)]
-        # allips = [addr_bit + str(255)]  # real broadcast
+        #allips = [addr_bit + str(i) for i in range(2, 255)]
+        allips = [addr_bit + str(255)]  # real broadcast
         while True:
             for ip in allips:
                 try:
                     if not ip == self.ip:
-                        self.sock.sendto(
+                        self.sock_broadcast.sendto(
                             json.dumps(
-                                self.alive).encode(), (ip, self.port_alive))
+                                self.alive).encode(), (ip, self.port_broadcast))
                         time.sleep(0.005)
                 except BaseException as b:
                     print(b)
@@ -70,27 +72,27 @@ class Controler():
                     pass
 
     def _read_stream(self):
-        self.sock.setblocking(False)
+        # self.sock.setblocking(False)
         while True:
             try:
-                ready = select.select([self.sock], [], [], 0.5)
-                if ready[0]:
-                    # TODO problem here: recv_size must be better
-                    bts, addr = self.sock.recvfrom(self.alive_size)
-                    msg = bts.decode()
-                    msg = json.loads(msg)
-                    if 'alive' in msg:
-                        if msg['alive']:
-                            i = 0
-                            for harvester in self.harvesters:
-                                if harvester.ip == msg['ip']:
-                                    self.harvesters[i].keep_alive = True
-                                    break
-                                i += 1
-                            # print("client on ip: {0} is alive".format(msg['ip']))
-                    else:
-                        topic_message = TopicMessage(msg, False)
-                        self.harvesters.append(topic_message)
+                # ready = select.select([self.sock_recieve], [], [], 0.5)
+                # if ready[0]:
+                # TODO problem here: recv_size must be better
+                bts, addr = self.sock_recieve.recvfrom(self.alive_size)
+                msg = bts.decode()
+                msg = json.loads(msg)
+                if 'alive' in msg:
+                    if msg['alive']:
+                        i = 0
+                        for harvester in self.harvesters:
+                            if harvester.ip == msg['ip']:
+                                self.harvesters[i].keep_alive = True
+                                break
+                            i += 1
+                        # print("client on ip: {0} is alive".format(msg['ip']))
+                else:
+                    topic_message = TopicMessage(msg, False)
+                    self.harvesters.append(topic_message)
             except socket.timeout:
                 self.connection = None
                 pass

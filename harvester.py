@@ -13,16 +13,17 @@ class Harvester():
         self.server_alive = False
         self.connection = None
         self.connected = False
+        self.port_recieve = 45001
+        self.port_broadcast = 45000
         self.ip = get_ip()
-        self.port_alive = 45000
         self.alive = {'alive': True, 'ip': self.ip}
         self.alive_size = getsizeof(self.alive)
+        self.sock_recieve = init_socket_UDP('0.0.0.0', self.port_recieve, False)
+        self.sock_broadcast = init_socket_UDP('0.0.0.0', self.port_broadcast, False)
         self.repeat = Event()
         self.threads = []
 
     def run(self):
-        self.sock = init_socket_UDP('0.0.0.0', self.port_alive, False)
-
         self.threads.append(Thread(target=self.callback, args=(), daemon=True))
         self.threads[-1].start()
         self._streams()
@@ -33,16 +34,18 @@ class Harvester():
                 print("SERVER NOT ALIVE")
 
             try:
-                bts, addr = self.sock.recvfrom(self.alive_size)
+                bts, addr = self.sock_recieve.recvfrom(self.alive_size)
                 msg = bts.decode()
                 msg = json.loads(msg)
-                self.server_alive = msg['alive']
                 self.serverIp = msg['ip']
+                self.server_alive = msg['alive']
                 print(
                     "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
                         self.serverIp,
-                        self.port_alive))
+                        self.port_recieve))
             except socket.timeout:
+                if self.sock_broadcast is not None:
+                    self.sock_broadcast.close()
                 self.server_alive = False
                 self.connected = False
                 continue
@@ -52,7 +55,7 @@ class Harvester():
         while self.server_alive:
             # reply mechanism
             data = json.dumps(self.alive).encode()
-            self.sock.sendto(data, (self.serverIp, self.port_alive))
+            self.sock_broadcast.sendto(data, (self.serverIp, self.port_broadcast))
             time.sleep(0.1)
 
     def _streams(self):
@@ -68,8 +71,8 @@ class Harvester():
                             daemon=True))
                     self.threads[-1].start()
 
-                    # TODO instead of this message send your isten port and
-                    # open new tread for pub/sub
+                    # TODO instead of this message send your listen port and
+                    # open new thread for pub/sub
                     topic_message = TopicMessage(
                         {'id': 120, 'ip': self.ip,
                             'manual': True, 'actuators': [
@@ -78,14 +81,14 @@ class Harvester():
 
                     # print(discovery_message)
                     data = topic_message.encode()
-                    self.sock.sendto(data, (self.serverIp, self.port_alive))
+                    self.sock_broadcast.sendto(data, (self.serverIp, self.port_broadcast))
                     time.sleep(1)
 
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)
                 self.connection = None
-                self.sock = init_socket_UDP(self.ip, self.port_alive, False)
+                # self.sock = init_socket_UDP(self.ip, self.port_alive, False)
                 pass
 
 
