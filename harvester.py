@@ -1,11 +1,11 @@
 import time
 from topic_message import TopicMessage
-from threading import Thread, Event
+from threading import Thread
 from sys import getsizeof
 from networking import init_socket_UDP, get_ip, init_socket_TCP
 import json
 import socket
-
+from broker import subscribe_listener
 
 # TODO merge this to my ROS architecture
 class Harvester():
@@ -40,11 +40,11 @@ class Harvester():
                 msg = json.loads(msg)
                 self.serverIp = msg['ip']
                 self.server_alive = msg['alive']
-                if self.server_alive:
-                    print(
-                        "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
-                            self.serverIp,
-                            self.port_recieve))
+                #if self.server_alive:
+                #    print(
+                #        "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
+                #            self.serverIp,
+                #            self.port_recieve))
             except socket.timeout:
                 self.server_alive = False
                 self.connected = False
@@ -72,10 +72,10 @@ class Harvester():
 
                     self.sock_broadcast.sendto(json.dumps(self.try_conn).encode(), (self.serverIp, self.port_broadcast))
 
-                    time.sleep(0.1)
-                    self.sock_pub = init_socket_TCP(self.serverIp, self.port_publish, False)
-                    time.sleep(0.1)
-                    self.sock_sub = init_socket_TCP(self.serverIp, self.port_subscribe, False)
+                    self.sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
+                    print("Sock_sub created")
+                    self.sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
+                    print("Sock_pub created")
 
                     register = TopicMessage({
                         'type': "register",
@@ -85,18 +85,43 @@ class Harvester():
                             'manual': False,
                             'actuators': ["steer", "accel"],
                             'sensors': ["camera"]},
-                        'topics_sub': ["/controler/manual",
+                        'topics': ["/controler/manual",
                             "/controler/start",
                             "/controler/stop"]
                         }).toJSON()
 
-                    self.sock_sub.send(register.encode())
+                    self.sock_pub.send(register.encode())
 
+                    # TODO make a thread to listen for data
+                    self.threads.append(
+                        Thread(
+                            target=lambda: subscribe_listener(self.sock_sub, foo),
+                            daemon=True
+                        )
+                    )
+                    self.threads[-1].start()
+
+                    # test example for broadcast reciever
+                    # TODO publish to car topics
+                    while True:
+                        time.sleep(1)
+                        publish_test = TopicMessage({
+                            'type': "publish",
+                            'id': self.id,
+                            'ip': self.ip,
+                            'topic' : "/automobile/accel",
+                            'value' : 0.5
+                        }).toJSON() 
+                        self.sock_pub.send(publish_test.encode())
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)
                 self.connected = False
                 pass
+
+def foo(data):
+    # here we use data from controler to stop/start/drive car.
+    print(data)
 
 if __name__ == "__main__":
     c = Harvester()

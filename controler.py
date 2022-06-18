@@ -5,8 +5,7 @@ from topic_message import TopicMessage
 from networking import init_socket_UDP, get_ip, init_socket_TCP
 from sys import getsizeof
 import time
-import select
-
+from broker import Broker, subscribe_listener
 
 class Controler:
     def __init__(self):
@@ -21,16 +20,27 @@ class Controler:
         self.alive_size = getsizeof(self.alive)
         self.threads = []
         self.repeat = Event()
+        self.broker = Broker()
 
     def run(self):
+        # basic udp sockets for discovery and keep alive 
         self.sock_recieve = init_socket_UDP('0.0.0.0', self.port_recieve, True)
         self.sock_broadcast = init_socket_UDP('0.0.0.0', self.port_broadcast, True)
+
+        # thread to broadcast life
         self.threads.append(Thread(
             target=self._broadcast_alive, args=(), daemon=True))
-        self.threads[0].start()                     # start broadcast_alive
+        self.threads[0].start()                     
+
+        # thread to listen for replys
         self.threads.append(Thread(
-            target=self.callback, args=(), daemon=True))        # start keep_alive listener
+            target=self.callback, args=(), daemon=True))        
         self.threads[-1].start()
+
+
+        # subscribe to car topics so that we can test that this shit works
+
+        # start main register loop
         self._read_stream()                                     # main loop reads stream
 
     class Device:
@@ -58,7 +68,7 @@ class Controler:
 
             i = 0
             for i in range(len(self.connected_devices)):
-                print("{0} is alive".format(self.connected_devices[i].ip))
+                # print("{0} is alive".format(self.connected_devices[i].ip))
                 self.connected_devices[i].alive = False
 
     def _broadcast_alive(self):
@@ -94,22 +104,33 @@ class Controler:
                                 break
                             i += 1
                 if 'clientID' in msg:
-                    self.sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
-                    print("Sock_sub created")
-                    self.sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
-                    print("Sock_pub created")
+                    time.sleep(0.1)
+                    self.sock_sub = init_socket_TCP(msg['ip'], self.port_subscribe, False)
+                    time.sleep(0.1)
+                    self.sock_pub = init_socket_TCP(msg['ip'], self.port_publish, False)
                     self.connected_devices.append(self.Device(msg['ip'], True))
                     
-                    bts = self.sock_pub.recv(1024) 
+                    bts = self.sock_sub.recv(1024) 
                     register = json.loads(bts.decode())
                     print(register)
+                    
+                    self.broker.add_topics(self.sock_sub, register['topics'])
+                     
+                    self.threads.append(
+                        Thread(
+                            target=lambda: subscribe_listener(self.sock_sub, self.broker.notify_subscribers),
+                            daemon=True
+                        )
+                    )
+                    self.threads[-1].start()
+                    print("broker listener thread started.")
+
             except socket.timeout:
                 pass
 
             except Exception as e:
                 print(e)
                 pass
-
 
 if __name__ == "__main__":
     s = Controler()

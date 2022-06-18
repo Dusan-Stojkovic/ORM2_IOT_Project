@@ -8,13 +8,13 @@ class TopicMessage:
             self.id = j['id']
             self.ip = j['ip']
             self.attributes = j['attributes']
-            self.topics = j['topics_sub']
+            self.topics = j['topics']
         elif j['type'] == "publish":
             self.type = j['type']
             self.id = j['id']
             self.ip = j['ip']
             self.topic = j['topic']
-            self.value - j['value']
+            self.value = j['value']
         elif j['type'] == "subscribe":
             #TODO generate new blocking thread for each one of these topics
             self.type = j['type']
@@ -37,9 +37,17 @@ class TopicMessage:
                     self.attributes,
                     self.topics)
         elif self.topic == "publish":
-            res = "type: {0}, id: {1}, ip: {2}, topic: {3}, value {4}".format(self.type, self.id, self.ip, self.topic, self.value)
+            res = "type: {0}, id: {1}, ip: {2}, topics_sub: {3}, value {4}".format(
+                    self.type,
+                    self.id,
+                    self.ip,
+                    self.topic,
+                    self.value)
         elif self.topic == "subscribe":
-            res = "type: {0}, id: {1}, ip: {2}, topic: {3}".format(self.type, self.id, self.ip, self.topic)
+            res = "type: {0}, id: {1}, ip: {2}, topic: {3}".format(self.type,
+                    self.id,
+                    self.ip,
+                    self.topic)
 
         return res
 
