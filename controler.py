@@ -105,9 +105,9 @@ class Controler:
                             i += 1
                 if 'clientID' in msg:
                     time.sleep(0.1)
-                    self.sock_sub = init_socket_TCP(msg['ip'], self.port_subscribe, False)
-                    time.sleep(0.1)
                     self.sock_pub = init_socket_TCP(msg['ip'], self.port_publish, False)
+                    time.sleep(0.1)
+                    self.sock_sub = init_socket_TCP(msg['ip'], self.port_subscribe, False)
                     self.connected_devices.append(self.Device(msg['ip'], True))
                     
                     bts = self.sock_sub.recv(1024) 
@@ -118,7 +118,7 @@ class Controler:
                      
                     self.threads.append(
                         Thread(
-                            target=lambda: subscribe_listener(self.sock_sub, self.broker.notify_subscribers),
+                            target=lambda: subscribe_listener(self.sock_pub, self.broker.notify_subscribers),
                             daemon=True
                         )
                     )

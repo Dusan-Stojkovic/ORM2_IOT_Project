@@ -13,8 +13,8 @@ class Harvester():
         self.id = 120
         self.server_alive = False
         self.connected = False
-        self.port_subscribe = 45003
-        self.port_publish = 45002
+        self.port_subscribe = 45002
+        self.port_publish = 45003
         self.port_recieve = 45001
         self.port_broadcast = 45000
         self.ip = get_ip()
@@ -90,7 +90,7 @@ class Harvester():
                             "/controler/stop"]
                         }).toJSON()
 
-                    self.sock_pub.send(register.encode())
+                    self.sock_sub.send(register.encode())
 
                     # TODO make a thread to listen for data
                     self.threads.append(

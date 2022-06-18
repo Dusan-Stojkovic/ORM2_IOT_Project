@@ -15,17 +15,16 @@ class Broker:
 
     def notify_subscribers(self, data):
         if data['topic'] in self.topics:
-            for sock in self.topic[data['topic']]:
-                sock.send(data.toJSON().encode())
+            for sock in self.topics[data['topic']]:
+                sock.send(json.dumps(data).encode())
 
 def subscribe_listener(sock, func):
     readable, writable, exceptional = select.select([sock], [], [])
     while True:
-        if readable[0] is sock:
+        if readable[0]:
             #New data found!
-            published_data = sock.recv(1024)
+            published_data = sock.recv(200)
             published_data = json.loads(published_data.decode())
-            print(published_data)
             func(published_data)
 
 if __name__ == "__main__":
