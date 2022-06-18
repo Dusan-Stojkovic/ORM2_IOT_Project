@@ -94,11 +94,15 @@ class Controler:
                                 break
                             i += 1
                 if 'clientID' in msg:
-                    self.tmp_sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
+                    self.sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
                     print("Sock_sub created")
-                    self.tmp_sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
+                    self.sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
                     print("Sock_pub created")
                     self.connected_devices.append(self.Device(msg['ip'], True))
+                    
+                    bts = self.sock_pub.recv(1024) 
+                    register = json.loads(bts.decode())
+                    print(register)
             except socket.timeout:
                 pass
 

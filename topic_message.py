@@ -2,29 +2,45 @@ import json
 
 
 class TopicMessage:
-    def __init__(self, j={}, alive=True):
-        if j == {}:
-            self.id = 0
-            self.ip = '127.0.0.1'
-            self.manual = True
-            self.actuators = []
-            self.sensors = []
-            self.keep_alive = alive
-        else:
+    def __init__(self, j={}):
+        if j['type'] == "register":
+            self.type = j['type']
             self.id = j['id']
             self.ip = j['ip']
-            self.manual = j['manual']
-            self.actuators = j['actuators']
-            self.sensors = j['sensors']
-            self.keep_alive = True
+            self.attributes = j['attributes']
+            self.topics = j['topics_sub']
+        elif j['type'] == "publish":
+            self.type = j['type']
+            self.id = j['id']
+            self.ip = j['ip']
+            self.topic = j['topic']
+            self.value - j['value']
+        elif j['type'] == "subscribe":
+            #TODO generate new blocking thread for each one of these topics
+            self.type = j['type']
+            self.id = j['id']
+            self.ip = j['ip']
+            self.topic = j['topic']
+            
 
     def toJSON(self):
         return json.dumps(self, default=lambda o: o.__dict__,
                           sort_keys=True, indent=4)
 
     def __str__(self):
-        res = "id: {0}\nip: {1}\nmanual: {2}\nactuators: {3}\nsensors: {4}\n".format(
-            self.id, self.ip, self.manual, self.actuators, self.sensors)
+        res = ""
+        if self.topic == "register":
+            res = "type: {0}, id: {1}, ip: {2}, attrib: {3}, topics: {4}".format(
+                    self.type,
+                    self.id,
+                    self.ip,
+                    self.attributes,
+                    self.topics)
+        elif self.topic == "publish":
+            res = "type: {0}, id: {1}, ip: {2}, topic: {3}, value {4}".format(self.type, self.id, self.ip, self.topic, self.value)
+        elif self.topic == "subscribe":
+            res = "type: {0}, id: {1}, ip: {2}, topic: {3}".format(self.type, self.id, self.ip, self.topic)
+
         return res
 
 

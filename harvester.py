@@ -10,8 +10,8 @@ import socket
 # TODO merge this to my ROS architecture
 class Harvester():
     def __init__(self):
+        self.id = 120
         self.server_alive = False
-        self.connection = None
         self.connected = False
         self.port_subscribe = 45003
         self.port_publish = 45002
@@ -19,11 +19,10 @@ class Harvester():
         self.port_broadcast = 45000
         self.ip = get_ip()
         self.alive = {'alive': True, 'ip': self.ip}
-        self.try_conn = { 'clientID': 120, 'ip': self.ip}
+        self.try_conn = { 'clientID': self.id, 'ip': self.ip}
         self.alive_size = getsizeof(self.alive)
         self.sock_recieve = init_socket_UDP('0.0.0.0', self.port_recieve, False)
         self.sock_broadcast = init_socket_UDP('0.0.0.0', self.port_broadcast, False)
-        self.repeat = Event()
         self.threads = []
 
     def run(self):
@@ -32,7 +31,7 @@ class Harvester():
         self._streams()
 
     def callback(self):
-        while not self.repeat.wait(1):
+        while True: 
             if not self.server_alive:
                 print("SERVER NOT ALIVE")
             try:
@@ -74,13 +73,28 @@ class Harvester():
                     self.sock_broadcast.sendto(json.dumps(self.try_conn).encode(), (self.serverIp, self.port_broadcast))
 
                     time.sleep(0.1)
-                    self.tmp_sock_pub = init_socket_TCP(self.serverIp, self.port_publish, False)
+                    self.sock_pub = init_socket_TCP(self.serverIp, self.port_publish, False)
                     time.sleep(0.1)
-                    self.tmp_sock_sub = init_socket_TCP(self.serverIp, self.port_subscribe, False)
+                    self.sock_sub = init_socket_TCP(self.serverIp, self.port_subscribe, False)
+
+                    register = TopicMessage({
+                        'type': "register",
+                        'id': self.id,
+                        'ip': self.ip, 
+                        'attributes': {
+                            'manual': False,
+                            'actuators': ["steer", "accel"],
+                            'sensors': ["camera"]},
+                        'topics_sub': ["/controler/manual",
+                            "/controler/start",
+                            "/controler/stop"]
+                        }).toJSON()
+
+                    self.sock_sub.send(register.encode())
+
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)
-                print("here")
                 self.connected = False
                 pass
 
