@@ -35,17 +35,17 @@ class Harvester():
         while not self.repeat.wait(1):
             if not self.server_alive:
                 print("SERVER NOT ALIVE")
-
             try:
                 bts, addr = self.sock_recieve.recvfrom(self.alive_size)
                 msg = bts.decode()
                 msg = json.loads(msg)
                 self.serverIp = msg['ip']
                 self.server_alive = msg['alive']
-                print(
-                    "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
-                        self.serverIp,
-                        self.port_recieve))
+                if self.server_alive:
+                    print(
+                        "SERVER IS ALIVE ON IP: {0}, PORT: {1}".format(
+                            self.serverIp,
+                            self.port_recieve))
             except socket.timeout:
                 self.server_alive = False
                 self.connected = False
@@ -54,7 +54,6 @@ class Harvester():
     def _connect_to_srv(self):
         # Keep alive time
         while self.server_alive:
-            # reply mechanism
             data = json.dumps(self.alive).encode()
             self.sock_broadcast.sendto(data, (self.serverIp, self.port_broadcast))
             time.sleep(0.1)
@@ -72,22 +71,18 @@ class Harvester():
                             daemon=True))
                     self.threads[-1].start()
 
-                    # TODO instead of this message send your listen port and
-                    # open new thread for pub/sub
-
                     self.sock_broadcast.sendto(json.dumps(self.try_conn).encode(), (self.serverIp, self.port_broadcast))
 
-                    time.sleep(1)
+                    time.sleep(0.1)
                     self.tmp_sock_pub = init_socket_TCP(self.serverIp, self.port_publish, False)
-                    time.sleep(1)
+                    time.sleep(0.1)
                     self.tmp_sock_sub = init_socket_TCP(self.serverIp, self.port_subscribe, False)
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)
-                self.connection = None
-                # self.sock = init_socket_UDP(self.ip, self.port_alive, False)
+                print("here")
+                self.connected = False
                 pass
-
 
 if __name__ == "__main__":
     c = Harvester()

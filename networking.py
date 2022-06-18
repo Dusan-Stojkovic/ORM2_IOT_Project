@@ -20,6 +20,7 @@ def init_socket_UDP(ip, port, server):
 def init_socket_TCP(ip, port, server):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     if server:
+        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((ip, port))
         s.listen()
         conn, addr = s.accept()

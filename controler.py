@@ -8,11 +8,10 @@ import time
 import select
 
 
-class Controler():
+class Controler:
     def __init__(self):
         self.connection = None
-        self.harvesters = []
-        self.threads = []
+        self.connected_devices = []
         self.ip = get_ip()
         self.port_subscribe = 45002
         self.port_publish = 45003
@@ -34,26 +33,33 @@ class Controler():
         self.threads[-1].start()
         self._read_stream()                                     # main loop reads stream
 
+    class Device:
+        ip = ''
+        alive = False
+        def __init__(self, ip, alive):
+            self.alive = alive
+            self.ip = ip
+
     def callback(self):
         while not self.repeat.wait(1):
             i = 0
             remove = False
-            for harvester in self.harvesters:
-                if not harvester.keep_alive:
+            for device in self.connected_devices:
+                if not device.alive:
                     print(
                         "client {0} has dropped his connection.".format(
-                            harvester.ip))
+                            device.ip))
                     remove = True
                     break
                 i += 1
 
             if remove:
-                self.harvesters.pop(i)
+                self.connected_devices.pop(i)
 
             i = 0
-            for i in range(len(self.harvesters)):
-                print("{0} is alive".format(self.harvesters[i].ip))
-                self.harvesters[i].keep_alive = False
+            for i in range(len(self.connected_devices)):
+                print("{0} is alive".format(self.connected_devices[i].ip))
+                self.connected_devices[i].alive = False
 
     def _broadcast_alive(self):
         bits = self.ip.split('.')
@@ -67,7 +73,7 @@ class Controler():
                         self.sock_broadcast.sendto(
                             json.dumps(
                                 self.alive).encode(), (ip, self.port_broadcast))
-                        time.sleep(0.005)
+                        time.sleep(0.5)
                 except BaseException as b:
                     print(b)
                     time.sleep(0.005)
@@ -82,25 +88,22 @@ class Controler():
                 if 'alive' in msg:
                     if msg['alive']:
                         i = 0
-                        for harvester in self.harvesters:
-                            if harvester.ip == msg['ip']:
-                                self.harvesters[i].keep_alive = True
+                        for device in self.connected_devices:
+                            if device.ip == msg['ip']:
+                                self.connected_devices[i].alive = True
                                 break
                             i += 1
                 if 'clientID' in msg:
-                    #topic_message = TopicMessage(msg, False)
-                    #self.harvesters.append(topic_message)
                     self.tmp_sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
                     print("Sock_sub created")
                     self.tmp_sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
                     print("Sock_pub created")
+                    self.connected_devices.append(self.Device(msg['ip'], True))
             except socket.timeout:
-                self.connection = None
                 pass
 
             except Exception as e:
                 print(e)
-                self.connection = None
                 pass
 
 
