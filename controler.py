@@ -2,7 +2,7 @@ from threading import Thread, Event
 import socket
 import json
 from topic_message import TopicMessage
-from networking import init_socket_UDP, get_ip
+from networking import init_socket_UDP, get_ip, init_socket_TCP
 from sys import getsizeof
 import time
 import select
@@ -14,6 +14,8 @@ class Controler():
         self.harvesters = []
         self.threads = []
         self.ip = get_ip()
+        self.port_subscribe = 45002
+        self.port_publish = 45003
         self.port_recieve = 45000
         self.port_broadcast = 45001
         self.alive = {'alive': True, 'ip': self.ip}
@@ -72,12 +74,8 @@ class Controler():
                     pass
 
     def _read_stream(self):
-        # self.sock.setblocking(False)
         while True:
             try:
-                # ready = select.select([self.sock_recieve], [], [], 0.5)
-                # if ready[0]:
-                # TODO problem here: recv_size must be better
                 bts, addr = self.sock_recieve.recvfrom(self.alive_size)
                 msg = bts.decode()
                 msg = json.loads(msg)
@@ -89,10 +87,13 @@ class Controler():
                                 self.harvesters[i].keep_alive = True
                                 break
                             i += 1
-                        # print("client on ip: {0} is alive".format(msg['ip']))
-                else:
-                    topic_message = TopicMessage(msg, False)
-                    self.harvesters.append(topic_message)
+                if 'clientID' in msg:
+                    #topic_message = TopicMessage(msg, False)
+                    #self.harvesters.append(topic_message)
+                    self.tmp_sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
+                    print("Sock_sub created")
+                    self.tmp_sock_pub = init_socket_TCP('0.0.0.0', self.port_publish, True)
+                    print("Sock_pub created")
             except socket.timeout:
                 self.connection = None
                 pass

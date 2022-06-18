@@ -17,6 +17,17 @@ def init_socket_UDP(ip, port, server):
         sock.settimeout(1)
     return sock
 
+def init_socket_TCP(ip, port, server):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    if server:
+        s.bind((ip, port))
+        s.listen()
+        conn, addr = s.accept()
+        return conn
+    else:
+        s.connect((ip, port))
+        return s
+
 # We ask our system do try and connect like this and it will give us it's
 # default ip
 def get_ip():

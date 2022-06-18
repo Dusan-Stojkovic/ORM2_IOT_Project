@@ -2,7 +2,7 @@ import time
 from topic_message import TopicMessage
 from threading import Thread, Event
 from sys import getsizeof
-from networking import init_socket_UDP, get_ip
+from networking import init_socket_UDP, get_ip, init_socket_TCP
 import json
 import socket
 
@@ -13,10 +13,13 @@ class Harvester():
         self.server_alive = False
         self.connection = None
         self.connected = False
+        self.port_subscribe = 45003
+        self.port_publish = 45002
         self.port_recieve = 45001
         self.port_broadcast = 45000
         self.ip = get_ip()
         self.alive = {'alive': True, 'ip': self.ip}
+        self.try_conn = { 'clientID': 120, 'ip': self.ip}
         self.alive_size = getsizeof(self.alive)
         self.sock_recieve = init_socket_UDP('0.0.0.0', self.port_recieve, False)
         self.sock_broadcast = init_socket_UDP('0.0.0.0', self.port_broadcast, False)
@@ -44,8 +47,6 @@ class Harvester():
                         self.serverIp,
                         self.port_recieve))
             except socket.timeout:
-                if self.sock_broadcast is not None:
-                    self.sock_broadcast.close()
                 self.server_alive = False
                 self.connected = False
                 continue
@@ -73,17 +74,13 @@ class Harvester():
 
                     # TODO instead of this message send your listen port and
                     # open new thread for pub/sub
-                    topic_message = TopicMessage(
-                        {'id': 120, 'ip': self.ip,
-                            'manual': True, 'actuators': [
-                                "accel", "steer"], 'sensors': ["camera"]}
-                    ).toJSON()
 
-                    # print(discovery_message)
-                    data = topic_message.encode()
-                    self.sock_broadcast.sendto(data, (self.serverIp, self.port_broadcast))
+                    self.sock_broadcast.sendto(json.dumps(self.try_conn).encode(), (self.serverIp, self.port_broadcast))
+
                     time.sleep(1)
-
+                    self.tmp_sock_pub = init_socket_TCP(self.serverIp, self.port_publish, False)
+                    time.sleep(1)
+                    self.tmp_sock_sub = init_socket_TCP(self.serverIp, self.port_subscribe, False)
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)

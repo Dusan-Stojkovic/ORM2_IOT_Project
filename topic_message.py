@@ -27,10 +27,6 @@ class TopicMessage:
             self.id, self.ip, self.manual, self.actuators, self.sensors)
         return res
 
-    # def __iter__(self):
-
-    # def __next__(self):
-
 
 if __name__ == "__main__":
     # serialization test goes here!
