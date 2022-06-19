@@ -16,12 +16,30 @@ class Broker:
                 self.topics[topic].append(sock)
 
     def notify_subscribers(self, data):
-        if data['topic'] in self.topics:
-            j = json.dumps(data)
-            for sock in self.topics[data['topic']]:
-                #print("notify {0}", data['topic'])
-                send_msg(j, sock)
-
+        hierarchy_of_msg = data['topic'].split('/')
+        #print(hierarchy_of_msg)
+        for topic in self.topics:
+            hierarchy = topic.split('/') 
+            i = 0
+            for i in range(len(hierarchy_of_msg)):
+                if hierarchy[i] == hierarchy_of_msg[i]:
+                    continue
+                elif hierarchy[i] == "#":
+                    j = json.dumps(data)
+                    for sock in self.topics[topic]:
+                        send_msg(j, sock)
+                    break
+                elif hierarchy[i] == "+":
+                    continue
+                else:
+                    i = 0
+                    break
+            if i == len(hierarchy_of_msg) - 1:
+                #print("{0} {1}".format(i, hierarchy_of_msg))
+                j = json.dumps(data)
+                for sock in self.topics[topic]:
+                    send_msg(j, sock)
+                    return
 
 def subscribe_listener(sock, func):
     readable, writable, exceptional = select.select([sock], [], [])
@@ -31,11 +49,12 @@ def subscribe_listener(sock, func):
             #print(getsizeof(published_data))
             try:
                 published_data = recv_msg(sock)
-                published_data = json.loads(published_data.decode())
-                #print(published_data)
-                func(published_data)
+                if published_data is not None:
+                    published_data = json.loads(published_data.decode())
+                    #print(published_data)
+                    func(published_data)
             except AttributeError as a:
-                #print(a)
+                print(a)
                 pass
             except Exception:
                 pass

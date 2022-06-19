@@ -118,6 +118,21 @@ class Monitoring():
                     self.sock_sub = init_socket_TCP('0.0.0.0', self.port_subscribe, True)
                     print("Sock_pub created")
 
+                    #TODO upgrade this to + # chars
+                    #register = TopicMessage({
+                    #    'type': "register",
+                    #    'id': self.id,
+                    #    'ip': self.ip, 
+                    #    'attributes': {
+                    #        'manual': False,
+                    #        'actuators': [],
+                    #        'sensors': ["keyboard"]},
+                    #    'topics': ["/automobile/movement/accel",
+                    #        "/automobile/movement/steer",
+                    #        "/automobile/camera/raw",
+                    #        "/automobile/lane/raw",
+                    #        "/automobile/lane/detected"]
+                    #    }).toJSON()
                     register = TopicMessage({
                         'type': "register",
                         'id': self.id,
@@ -126,9 +141,8 @@ class Monitoring():
                             'manual': False,
                             'actuators': [],
                             'sensors': ["keyboard"]},
-                        'topics': ["/automobile/accel",
-                            "/automobile/steer",
-                            "/automobile/camera"]
+                        'topics': ["/automobile/movement/#",
+                            "/automobile/+/raw"]
                         }).toJSON()
 
                     self.sock_sub.send(register.encode())
@@ -154,14 +168,18 @@ class Monitoring():
 
 #TODO make this display cleaner
 def display(data):
-    if data['value_type'] == "float":
+    if data['value_type'] == "float" or data['value_type'] == "String":
         with open("log_monitor.txt", 'a') as file:
             file.write(str(data) + '\n')
     elif data['value_type'] == "Image":
         imdata = BytesIO(base64.b64decode(data['value']))
         img = cv2.imdecode(np.frombuffer(imdata.read(), np.uint8), 1)
-        cv2.imshow('feed', img)
-        cv2.waitKey(1)
+        if data['topic'] == "/automobile/camera/raw":
+            cv2.imshow('feed', img)
+            cv2.waitKey(1)
+        else:
+            cv2.imshow('feed_lane', img)
+            cv2.waitKey(1)
 
 if __name__ == "__main__":
     c = Monitoring()
