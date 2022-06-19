@@ -4,9 +4,12 @@ from threading import Thread
 from sys import getsizeof
 from networking import init_socket_UDP, get_ip, init_socket_TCP
 import json
+from io import BytesIO
 import socket
-from broker import subscribe_listener
+from broker import subscribe_listener, send_msg
 import cv2
+import base64
+import numpy as np
 
 class Monitoring():
     def __init__(self):
@@ -56,7 +59,7 @@ class Monitoring():
                     'value': True,
                     'value_type': "bool"
                 }).toJSON()
-                self.sock_pub.send(stop_message.encode())
+                send_msg(stop_message, self.sock_pub) 
             elif command == "go":
                 go_message = TopicMessage({
                     'type': "publish",
@@ -66,8 +69,7 @@ class Monitoring():
                     'value': True,
                     'value_type': "bool"
                     }).toJSON()
-                self.sock_pub.send(go_message.encode())
-
+                send_msg(go_message, self.sock_pub)
 
     def callback(self):
         while True: 
@@ -152,16 +154,14 @@ class Monitoring():
 
 #TODO make this display cleaner
 def display(data):
-    print(data['value_type'])
     if data['value_type'] == "float":
         with open("log_monitor.txt", 'a') as file:
             file.write(str(data) + '\n')
     elif data['value_type'] == "Image":
-        print("here")
-        imdata = base64.b64decode(load['value'])
-        image = cv2.open(imdata)
-        cv2.imshow(image)
-        cv2.waitKey(0)
+        imdata = BytesIO(base64.b64decode(data['value']))
+        img = cv2.imdecode(np.frombuffer(imdata.read(), np.uint8), 1)
+        cv2.imshow('feed', img)
+        cv2.waitKey(1)
 
 if __name__ == "__main__":
     c = Monitoring()
