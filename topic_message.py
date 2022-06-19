@@ -15,6 +15,7 @@ class TopicMessage:
             self.ip = j['ip']
             self.topic = j['topic']
             self.value = j['value']
+            self.value_type = j['value_type']
         elif j['type'] == "subscribe":
             #TODO generate new blocking thread for each one of these topics
             self.type = j['type']

@@ -6,6 +6,7 @@ from networking import init_socket_UDP, get_ip, init_socket_TCP
 import json
 import socket
 from broker import subscribe_listener
+import cv2
 
 class Monitoring():
     def __init__(self):
@@ -28,6 +29,45 @@ class Monitoring():
         self.threads.append(Thread(target=self.callback, args=(), daemon=True))
         self.threads[-1].start()
         self._streams()
+
+    def repl(self):
+        command = ""
+        prompt = ">> "
+        while command != "exit":
+            print(">> ", end = '')
+            command = input()
+            if command == "print":
+                with open("log_monitor.txt", 'r') as file:
+                    lines = file.readlines()
+                    for i in range(-5, 0):
+                        # have a bug here, careful not to kill this thread
+                        try:
+                            print(lines[i])
+                        except Exception as e:
+                            print(e)
+                            pass
+            elif command == "stop":
+                # publish stop 
+                stop_message = TopicMessage({
+                    'type': "publish",
+                    'id': self.id,
+                    'ip': self.ip,
+                    'topic': "/monitor/stop",
+                    'value': True,
+                    'value_type': "bool"
+                }).toJSON()
+                self.sock_pub.send(stop_message.encode())
+            elif command == "go":
+                go_message = TopicMessage({
+                    'type': "publish",
+                    'id': self.id,
+                    'ip': self.ip,
+                    'topic': "/monitor/start",
+                    'value': True,
+                    'value_type': "bool"
+                    }).toJSON()
+                self.sock_pub.send(go_message.encode())
+
 
     def callback(self):
         while True: 
@@ -86,7 +126,7 @@ class Monitoring():
                             'sensors': ["keyboard"]},
                         'topics': ["/automobile/accel",
                             "/automobile/steer",
-                            "/automobile/state"]
+                            "/automobile/camera"]
                         }).toJSON()
 
                     self.sock_sub.send(register.encode())
@@ -99,6 +139,11 @@ class Monitoring():
                         )
                     )
                     self.threads[-1].start()
+                    self.threads.append(Thread(
+                        target=lambda: self.repl(),
+                        daemon=True
+                    ))
+                    self.threads[-1].start()
             except Exception as e:
                 # Reinitialize the socket for reconnecting to controler.
                 print(e)
@@ -107,7 +152,16 @@ class Monitoring():
 
 #TODO make this display cleaner
 def display(data):
-    print(data)
+    print(data['value_type'])
+    if data['value_type'] == "float":
+        with open("log_monitor.txt", 'a') as file:
+            file.write(str(data) + '\n')
+    elif data['value_type'] == "Image":
+        print("here")
+        imdata = base64.b64decode(load['value'])
+        image = cv2.open(imdata)
+        cv2.imshow(image)
+        cv2.waitKey(0)
 
 if __name__ == "__main__":
     c = Monitoring()

@@ -1,5 +1,6 @@
 import select
 import json
+from sys import getsizeof
 
 class Broker:
     def __init__(self):
@@ -16,7 +17,6 @@ class Broker:
     def notify_subscribers(self, data):
         if data['topic'] in self.topics:
             for sock in self.topics[data['topic']]:
-                print("transmiting data")
                 sock.send(json.dumps(data).encode())
 
 def subscribe_listener(sock, func):
@@ -24,10 +24,13 @@ def subscribe_listener(sock, func):
     while True:
         if readable[0]:
             #New data found!
-            published_data = sock.recv(1024)
-            #print(published_data)
-            published_data = json.loads(published_data.decode())
-            func(published_data)
+            published_data = sock.recv(30000)
+            print(getsizeof(published_data))
+            try:
+                published_data = json.loads(published_data.decode())
+                func(published_data)
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     print("Broker example.")
